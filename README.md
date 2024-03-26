@@ -4,7 +4,7 @@ If you sit at a computer with headphones on and sit so that you can’t see the 
 
 # Requirements 
 * USB Zigbee Dongle, tested with [SONOFF Zigbee 3.0 USB Dongle Plus-E](https://ozon.ru/t/nbLbl1d)
-* Door & Window Sensor, tested with Tuya Smart Zigbee Door Sensor
+* Door & Window Sensor, tested with **Tuya Smart Zigbee Door Sensor**
 
 # Installation
 * Clone this repo
