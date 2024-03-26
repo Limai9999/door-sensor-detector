@@ -1,0 +1,42 @@
+{
+  "name": "door-sensor-detector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": "./build/index.js",
+  "scripts": {
+    "build": "rimraf build/ && tsc",
+    "start": "npm run build && node build/index.js",
+    "dev": "npx nodemon --watch \"src/**/*.ts\" -e ts --exec ts-node --esm src/index.ts",
+    "nobuildstart": "node build/index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/play-sound": "^1.1.2",
+    "@types/sound-play": "^1.1.3",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "^8.57.0",
+    "nodemon": "^3.1.0",
+    "pkg": "^5.8.1",
+    "typescript": "^5.4.3"
+  },
+  "dependencies": {
+    "node-hide-console-window": "^2.2.0",
+    "sound-play": "^1.1.0",
+    "systray2": "^2.1.4",
+    "zigbee-herdsman": "^0.40.0"
+  },
+  "pkg": {
+    "scripts": "src/**/*.js",
+    "targets": [
+      "node18-win"
+    ],
+    "assets": [
+      "node_modules/@serialport/bindings-cpp/prebuilds",
+      "node_modules/systray2/traybin"
+    ],
+    "outputPath": "exe_build"
+  }
+}
