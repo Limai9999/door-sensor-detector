@@ -1,5 +1,4 @@
-# A simple Node JS application for Zigbee Door Sensor with Sound Notifications
-### and other features
+# A simple Node JS application for Zigbee Door Sensor with Sound Notifications and other features
 
 If you sit at a computer with headphones on and sit so that you can’t see the door, so you don’t hear when someone comes in, then this application is for you!
 
