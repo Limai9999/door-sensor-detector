@@ -1,11 +1,21 @@
+import 'colors';
 import { Controller } from 'zigbee-herdsman';
 import path from 'path';
 import soundPlayer from 'sound-play';
-import SysTray, { MenuItem } from 'systray2';
+import SysTray from 'systray2';
 import os from 'os';
 import { showConsole, hideConsole } from 'node-hide-console-window';
+import robot from 'robotjs';
+
+import { mainConfig } from './utils/getConfig';
+
+import { MainConfig } from './types/Configs/MainConfig';
+import { Device } from 'zigbee-herdsman/dist/controller/model';
 
 // pkg . --no-bytecode --public-packages "*" --public --output exe_build\DoorDetector.exe
+
+// eslint-disable-next-line prefer-const
+let { configData, saveConfig } = mainConfig();
 
 const isProduction = true;
 const processPath = process.cwd();
@@ -14,21 +24,38 @@ const preDBPath = isProduction ? '../data/devices.db' : './data/devices.db';
 const DBPath = path.resolve(processPath, preDBPath);
 
 const coordinator = new Controller({
-  serialPort: { path: 'COM3', adapter: 'ezsp' },
+  serialPort: { path: configData.COM, adapter: 'ezsp' },
   databasePath: DBPath,
 } as any);
 
 async function start() {
   createTrayIcon();
-  hideConsole();
+  if (!configData.showConsole) hideConsole();
 
   const startResult = await coordinator.start();
-  console.log('startResult', startResult);
+  console.log('Start Result Code:', startResult);
 
   await coordinator.permitJoin(true, undefined, 60);
-  console.log('Joining permitted for 60 seconds...');
+  console.log('Joining permitted for 60 seconds... Now you can pair your sensor.'.yellow);
 
-  coordinator.getDevices();
+  let devices = coordinator.getDevices();
+  if (devices.length <= 1) showConsole();
+
+  const logDevices = (devices: Device[]) => {
+    console.log('Connected Devices:', devices.map((device, index) => `${index + 1}. ${device.type}: ${device.manufacturerName || 'Invalid Manufacturer Name'} - ${device.modelID || 'Invalid Model ID'}`).join(', '));
+  };
+  logDevices(devices);
+
+  setInterval(() => {
+    const newDevices = coordinator.getDevices();
+    if (devices.length !== newDevices.length) logDevices(newDevices);
+
+    devices = newDevices;
+  }, 3000);
+
+  setTimeout(() => {
+    console.log('Pairing is no longer available. Restart the application if you haven\'t paired your sensor.'.yellow);
+  }, 1000 * 60);
 
   let savedZoneStatus = -1;
 
@@ -41,47 +68,114 @@ async function start() {
       if (data.zonestatus === savedZoneStatus) return;
       savedZoneStatus = data.zonestatus;
 
-      if (data.zonestatus === 0) {
-        onDoorClosed();
-      } else {
-        onDoorOpened();
-      }
+      data.zonestatus === 0 ? onDoorClosed() : onDoorOpened();
     }
   });
 }
 
-function onDoorClosed() {
-  console.log('door CLOSED');
+function updateConfig(config: MainConfig) {
+  saveConfig(config);
+  configData = config;
+}
 
-  const filePath = path.join(processPath, '../assets/sounds/door_closed.mp3');
-  soundPlayer.play(filePath, 0.3);
+function onDoorClosed() {
+  console.log('Door has been CLOSED'.green);
+
+  if (configData.playSound) {
+    const filePath = path.join(processPath, '../assets/sounds/door_closed.mp3');
+    soundPlayer.play(filePath, configData.volume.close);
+  }
 }
 
 function onDoorOpened() {
-  console.log('door OPENED');
+  console.log('Door has been OPENED'.red);
 
-  const filePath = path.join(processPath, '../assets/sounds/door_opened.mp3');
-  soundPlayer.play(filePath, 0.3);
+  if (configData.playSound) {
+    const filePath = path.join(processPath, '../assets/sounds/door_opened.mp3');
+    soundPlayer.play(filePath, configData.volume.open);
+  }
+
+  if (configData.pressEscapeButton) {
+    robot.keyTap('escape');
+  }
+
+  if (configData.hideAllWindows) {
+    robot.keyTap('d', ['command']);
+  }
 }
 
 function createTrayIcon() {
-  const itemShowConsole = {
-    title: 'Show Console',
-    tooltip: 'Show Console',
+  const itemShowHideConsole = {
+    title: `${configData.showConsole ? 'Hide' : 'Show'} Console`,
+    tooltip: `${configData.showConsole ? 'Hide' : 'Show'} Console`,
     checked: false,
     enabled: true,
     click: () => {
-      showConsole();
+      configData.showConsole ? hideConsole() : showConsole();
+
+      configData.showConsole = !configData.showConsole;
+      updateConfig(configData);
+
+      itemShowHideConsole.title = `${configData.showConsole ? 'Hide' : 'Show'} Console`;
+      itemShowHideConsole.tooltip = `${configData.showConsole ? 'Hide' : 'Show'} Console`;
+      systray.sendAction({
+        type: 'update-item',
+        item: itemShowHideConsole,
+      });
     },
   };
 
-  const itemHideConsole = {
-    title: 'Hide Console',
-    tooltip: 'Hide Console',
-    checked: false,
+  const itemPlaySound = {
+    title: 'Play Sound',
+    tooltip: 'Play Sound',
+    checked: configData.playSound,
     enabled: true,
     click: () => {
-      hideConsole();
+      configData.playSound = !configData.playSound;
+      updateConfig(configData);
+
+      itemPlaySound.checked = configData.playSound;
+
+      systray.sendAction({
+        type: 'update-item',
+        item: itemPlaySound,
+      });
+    },
+  };
+
+  const itemPressEscapeButton = {
+    title: 'Press "Escape" Button when opened',
+    tooltip: 'Press "Escape" Button when opened',
+    checked: configData.pressEscapeButton,
+    enabled: true,
+    click: () => {
+      configData.pressEscapeButton = !configData.pressEscapeButton;
+      updateConfig(configData);
+
+      itemPressEscapeButton.checked = configData.pressEscapeButton;
+
+      systray.sendAction({
+        type: 'update-item',
+        item: itemPressEscapeButton,
+      });
+    },
+  };
+
+  const itemHideAllWindows = {
+    title: 'Hide all windows (Show Desktop) when opened',
+    tooltip: 'Hide all windows (Show Desktop) when opened',
+    checked: configData.hideAllWindows,
+    enabled: true,
+    click: () => {
+      configData.hideAllWindows = !configData.hideAllWindows;
+      updateConfig(configData);
+
+      itemHideAllWindows.checked = configData.hideAllWindows;
+
+      systray.sendAction({
+        type: 'update-item',
+        item: itemHideAllWindows,
+      });
     },
   };
 
@@ -104,8 +198,12 @@ function createTrayIcon() {
       title: 'Door Detector',
       tooltip: 'Door Detector',
       items: [
-        itemShowConsole,
-        itemHideConsole,
+        itemShowHideConsole,
+        SysTray.separator,
+        itemPlaySound,
+        itemPressEscapeButton,
+        itemHideAllWindows,
+        SysTray.separator,
         itemExit,
       ],
     },
@@ -123,9 +221,9 @@ function createTrayIcon() {
 
   // Systray.ready is a promise which resolves when the tray is ready.
   systray.ready().then(() => {
-    console.log('systray started!');
+    console.log('System Tray Icon started!');
   }).catch((err) => {
-    console.log('systray failed to start: ' + err.message);
+    console.log('System Tray Icon failed to start: ' + err.message);
   });
 }
 

@@ -1,0 +1,11 @@
+{
+  "COM": "COM3",
+  "showConsole": true,
+  "volume": {
+    "close": 0.3,
+    "open": 1
+  },
+  "playSound": true,
+  "pressEscapeButton": false,
+  "hideAllWindows": false
+}

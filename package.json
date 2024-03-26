@@ -23,7 +23,9 @@
     "typescript": "^5.4.3"
   },
   "dependencies": {
+    "colors": "^1.4.0",
     "node-hide-console-window": "^2.2.0",
+    "robotjs": "^0.6.0",
     "sound-play": "^1.1.0",
     "systray2": "^2.1.4",
     "zigbee-herdsman": "^0.40.0"
